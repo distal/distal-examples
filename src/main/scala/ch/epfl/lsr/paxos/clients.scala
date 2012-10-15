@@ -74,7 +74,7 @@ class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :In
 class ClientStarter(val ID :String) extends DSLProtocol { 
   // TODO from config
   val count = 100
-  val SZ = 32
+  val SZ = CONSTANTS.ClientRequestPayload
   val replicas = DSLProtocol.getAll(classOf[Server])
   val duration = 120(SECONDS)
   

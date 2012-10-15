@@ -12,6 +12,16 @@ case class Ordered(pr :Seq[PaxosRequest]) extends Message
 
 case class EXIT() extends Message
 
+object CONSTANTS { 
+  val ClientRequestPayload = 30
+  val WSZ = 10
+  val BSZ = { 
+    val ClientRequestSizeOverhead = 20 // or so (depending on string length, and seqno)
+    1500/(ClientRequestSizeOverhead+ClientRequestPayload)
+  }
+}
+
+
 // PAXOS
 class PaxosServer(ID:String) extends Legislator(ID, new MemoryLedger(1000), Dictator.ID) { 
   val server = DSLProtocol.locationForId(classOf[Server], ID)
@@ -70,7 +80,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
       //println("req "+msg.id+" 2bDecided:"+toBeDecided.size)
       clientLocations.update(msg.id.ID, SENDER)
       
-      if(toBeDecided.size < 10)
+      if(toBeDecided.size < CONSTANTS.WSZ)
 	propose(msg)
       else 
 	toPropose.enqueue(msg)
