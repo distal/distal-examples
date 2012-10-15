@@ -41,7 +41,8 @@ UPON RECEIVING Done FROM "any" TIMES 1 WITH { _.i == 1} DO
 /* ****************************************************** */
 // Sender part
 /* ****************************************************** */
-class SendingProtocol extends DSLProtocol("sender") { 
+class SendingProtocol extends DSLProtocol { 
+  val ID = "sender"
   
   var interestingStuff :Seq[Any] = Seq(1, "2", Drei, new Container(List(1,2,3,4))) 
   var i = 0
@@ -110,7 +111,8 @@ object SenderMain {
 // Printer part
 /* ****************************************************** */
 
-class PrintingProtocol extends DSLProtocol("printer") { 
+class PrintingProtocol extends DSLProtocol { 
+  val ID = "printer"
   var i = 0
 
   UPON RECEIVING Print WITH { _.i == i } WITH { _.m.toString.length > 0 } FROM "sender" DO { 
@@ -119,7 +121,7 @@ class PrintingProtocol extends DSLProtocol("printer") {
       //println("sending "+Done(i)+" to "+sender)
       //Thread.sleep(100)
     i = i + 1
-    | SEND Done(i) TO sender
+    | SEND Done(i) TO SENDER
   } 
 
   UPON RECEIVING START DO { 
