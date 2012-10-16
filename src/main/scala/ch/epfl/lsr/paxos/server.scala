@@ -6,15 +6,18 @@ import collection.Set
 
 import java.util.concurrent.TimeUnit._
 
-case class PaxosRequest(cr: ClientRequest) extends Message
+
+case class PaxosRequest(id: RequestID, crs: Array[ClientRequest]) extends Message 
 
 case class Ordered(pr :Seq[PaxosRequest]) extends Message
 
 case class EXIT() extends Message
 
-object CONSTANTS { 
+object CONSTANTS extends ImplicitDurations { 
+  val ClientCount = 500
   val ClientRequestPayload = 30
   val WSZ = 10
+  val BATCHTIMEOUT = 10(MILLISECONDS)
   val BSZ = { 
     val ClientRequestSizeOverhead = 20 // or so (depending on string length, and seqno)
     1500/(ClientRequestSizeOverhead+ClientRequestPayload)
@@ -66,32 +69,81 @@ class PaxosServer(ID:String) extends Legislator(ID, new MemoryLedger(1000), Dict
 class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs { 
   self =>
 
+    class Batcher { 
+      var buffer :List[ClientRequest] = Nil
+      var count :Int = 0
+      var version = 0
+
+      def +=(r :ClientRequest) { 
+	count += 1
+	buffer = r :: buffer
+	if(count == 1) { 
+	  val current = version // closure over current value of version
+	  | AFTER CONSTANTS.BATCHTIMEOUT DO { 
+	    try { 
+	      propose(this.verifyAndGet(current))
+	    } catch { 
+	      case t :Throwable => ()
+	    }
+	  }
+	}
+      }
+
+      def isFull :Boolean = { 
+	count >= CONSTANTS.BSZ
+      }
+
+      def verifyAndGet(assumedVersion :Int = -1) :Array[ClientRequest] = {
+	// AFTER code above will not propose if proposed in the meantime.
+	assume(assumedVersion == -1 || version == assumedVersion) 
+	
+	get
+      }
+
+      def get = { 
+	val rv = buffer
+
+	//println("BATCH of size "+count)
+	version += 1
+	buffer = Nil
+	count = 0
+
+	rv.toArray
+      }
+    }
+    
+
     println("SERVER created")
 
   val paxos = DSLProtocol.locationForId(classOf[PaxosServer], ID)
   //val executor = new Executor(ID+".exe", LOCATION+"/exec")
   
-  val toPropose  = new collection.mutable.Queue[ClientRequest]()
+  val toPropose  = new collection.mutable.Queue[Array[ClientRequest]]()
   val toBeDecided  = new collection.mutable.HashSet[RequestID]()
   val clientLocations = new collection.mutable.HashMap[String,ProtocolLocation]()
+  val batcher = new Batcher
   
   UPON RECEIVING ClientRequest DO { 
     msg =>
-      //println("req "+msg.id+" 2bDecided:"+toBeDecided.size)
-      clientLocations.update(msg.id.ID, SENDER)
-      
+    clientLocations.update(msg.id.ID, SENDER)
+
+    batcher += msg
+    
+    if(batcher.isFull) { 
       if(toBeDecided.size < CONSTANTS.WSZ)
-	propose(msg)
+	propose(batcher.get)
       else 
-	toPropose.enqueue(msg)
+	toPropose.enqueue(batcher.get)
+    }
     
     | DISCARD msg
   }
 
-  def propose(req :ClientRequest) = { 
+  def propose(reqs :Array[ClientRequest]) = { 
     //println("proposing "+req.id+" "+(new java.util.Date))
-      toBeDecided += req.id
-    | SEND Request(PaxosRequest(req)) TO paxos
+    val pr = PaxosRequest(nextReqId, reqs)
+    toBeDecided += pr.id
+    | SEND Request(pr) TO paxos
   }
 
   UPON RECEIVING Ordered DO { 
@@ -100,7 +152,6 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
 	if(toPropose.nonEmpty) {  // send new one
 	  propose(toPropose.dequeue)
 	}
-
 	execute(_)
       }
 
@@ -108,23 +159,25 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
   }
 
   def execute(pr :PaxosRequest) = { 
-    val returnValue = pr.cr.value 
-    toBeDecided -= pr.cr.id
-    clientLocations.get(pr.cr.id.ID) map { 
-      protoloc => 
-	//println(pr.cr.id+" => "+protoloc+" "+(new java.util.Date))
-	| SEND ClientResponse(pr.cr.id, returnValue) TO protoloc
+    
+    toBeDecided -= pr.id
+
+    pr.crs foreach { 
+      cr => 
+	val returnValue = cr.value 	// TODO do something more usefull with value
+
+	clientLocations.get(cr.id.ID) foreach { 
+	  protoloc => 
+	    | SEND ClientResponse(cr.id, returnValue) TO protoloc
+	}
     }
   }
-
 
   UPON RECEIVING START DO { 
     msg =>
       println("SERVER started")
     | DISCARD msg
   }
-
-
 
   UPON RECEIVING EXIT DO { 
     msg => 
