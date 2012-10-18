@@ -5,28 +5,31 @@ import ch.epfl.lsr.netty.protocol.ProtocolLocation
 import collection.Set
 
 import java.util.concurrent.TimeUnit._
+import ch.epfl.lsr.performance._
 
 object Dictator { 
   lazy val ID = "1"
 } 
 
-class DictatorBasedLegislator(ID :String) extends Legislator(ID, new MemoryLedger(100), Dictator.ID) { 
+class DictatorBasedLegislator(ID :String) extends FasterLegislator(ID, new MemoryLedger(100), Dictator.ID) { 
   var lastRequest = -1
 
   val times = new Array[Long](1000)
 
   val STARTUPDELAY = 15
-  val windowSZ = 15
+  val windowSZ = 10
 
-  val stats = new ch.epfl.lsr.performance.SimpleSummaryStats { 
+  val stats = new SimpleSummaryStats { 
     val getIdentifier = ID
     val discardFor = 30
-    val collectFor = 1000 // get result done on exit.
+    val collectFor = 10000 // get result done on exit.
   }
 
 
   UPON RECEIVING START DO { 
     msg =>
+      val bean = ThreadMonitor.getBean
+
       | AFTER STARTUPDELAY(SECONDS) DO { 
 	startRuling
       }
@@ -34,6 +37,7 @@ class DictatorBasedLegislator(ID :String) extends Legislator(ID, new MemoryLedge
 	println("LastRequest = "+lastRequest)
 	println("STATS: "+stats.report)
 	println("AVG duration"+(times.sum/times.size))
+	bean.printReport
 	| AFTER 10(SECONDS) DO { 
 	  System.exit(0)
 	}
@@ -41,9 +45,8 @@ class DictatorBasedLegislator(ID :String) extends Legislator(ID, new MemoryLedge
       | DISCARD msg
   }
 
-  def nextRuling = { 
-    lastRequest = lastRequest + 1
-    (lastRequest.toString.getBytes, Some(LOCATION))
+  val nextRuling = { 
+    Array.fill[Byte](1300) { 1 }
   }
 
   def startRuling { 
@@ -51,7 +54,7 @@ class DictatorBasedLegislator(ID :String) extends Legislator(ID, new MemoryLedge
       println(windowSZ)
       0 to windowSZ foreach { 
 	i => 
-	  propose(Decree(ledger.nextDecreeNr,nextRuling))
+	  proposeDecree(Decree(ledger.nextDecreeNr,nextRuling))
       }
     }
   }
@@ -61,7 +64,7 @@ class DictatorBasedLegislator(ID :String) extends Legislator(ID, new MemoryLedge
     if(IamPresident) { 
       val num = ledger.nextDecreeNr
 
-      propose(Decree(num,nextRuling))
+      proposeDecree(Decree(num,nextRuling))
 
       if(num>=1000 && num<2000)
 	times(num.toInt-1000) = System.nanoTime

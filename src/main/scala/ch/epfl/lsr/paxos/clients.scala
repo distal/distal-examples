@@ -4,7 +4,7 @@ import ch.epfl.lsr.distal._
 import ch.epfl.lsr.netty.protocol.ProtocolLocation
 import collection.Set
 
-import ch.epfl.lsr.performance.SimpleSummaryStats
+import ch.epfl.lsr.performance.{ SimpleSummaryStats, ThreadMonitor }
 import java.util.concurrent.TimeUnit._
 
 
@@ -35,8 +35,8 @@ trait NumberedRequestIDs {
 
 class ClientStats(ID :String) extends SimpleSummaryStats { 
   val getIdentifier = ID
-  val discardFor = 30
-  val collectFor = 1000 // report will be triggered "manually"
+  val discardFor = CONSTANTS.Discard
+  val collectFor = 10000 // report will be triggered "manually"
 }
 
 class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :Int) extends DSLProtocol with NumberedRequestIDs { 
@@ -57,8 +57,8 @@ class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :In
     msg => 
       assert(isPrevId(msg.id), "response: "+msg.id+" local"+seqno+"ID "+ID)
 
-      stats.recordEvent(seqno)
     | SEND ClientRequest(nextReqId, value) TO leader
+      stats.recordEvent(seqno)
 
     | DISCARD msg
   }
@@ -76,7 +76,6 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   val count = CONSTANTS.ClientCount
   val SZ = CONSTANTS.ClientRequestPayload
   val replicas = DSLProtocol.getAll(classOf[Server])
-  val duration = 120(SECONDS)
   
 
   val clients = (1 to count).map { 
@@ -86,10 +85,15 @@ class ClientStarter(val ID :String) extends DSLProtocol {
 
   UPON RECEIVING START DO { 
     m => 
+//      val bean = ThreadMonitor.getBean
+
       | AFTER 6(SECONDS) DO { 
 	clients.foreach{ _.start }
       }
-      | AFTER duration DO { 
+      | AFTER CONSTANTS.Duration DO { 
+
+	//bean.printReport
+
 	| SEND RequestReport() TO clients
       }
       | DISCARD m
@@ -98,9 +102,7 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   UPON RECEIVING Report TIMES count DO { 
     msgs => 
 
-      msgs.toSeq.sortBy(msg => (msg.ID.drop(2)).toInt).foreach { 
-	r => println("STATS: "+r.report)
-      }
+      println(msgs.toSeq.sortBy(msg => (msg.ID.drop(2)).toInt).map(_.report).mkString("\nSTATS: "))
 
     // | SEND EXIT() TO replicas
     

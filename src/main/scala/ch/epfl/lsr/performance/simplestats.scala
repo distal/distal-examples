@@ -40,19 +40,21 @@ trait SimpleSummaryStats {
     if (now > reportAfter) { 
       if(!printedReport) { 
         printedReport = true
-        println(report)
+	println(report)
       }
     }
   }
 
-  def nanos2millis(nanos :Double) = 
-    NANOSECONDS.convert(nanos.toLong, MILLISECONDS)
+  val nano2milli = NANOSECONDS.convert(1, MILLISECONDS)
+
+  def nanos2millis(nanos :Double) :Double = nanos / nano2milli
+    
 
   def report = { 
-    println("%s: report requested (last=%d @%d)".format(getIdentifier, lastEventId, System.nanoTime))
+    // println("%s: report requested (last=%d @%d)".format(getIdentifier, lastEventId, System.nanoTime))
     val duration = MILLISECONDS.convert(lastRequestTS - firstRequestTS, NANOSECONDS)
     val thrpt = ((stats.getN().toDouble / duration)*1000)  //"CLIENT "+clientID+" finishing time "+ System.nanoTime()+" last request "+lastRequestTS+" \n"+
-    val str = "%s % 6d %6.2f % 6d % 6d % 6d % 6d".format(getIdentifier, 
+    val str = "%s % 6d %6.2f % 6.2f % 6.2f % 6.2f % 6.2f".format(getIdentifier, 
 							    stats.getN(), 
 							    thrpt, 
 							    nanos2millis( stats.getMean ),

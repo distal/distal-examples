@@ -61,5 +61,4 @@ echo starting @ ${LOCAL}
 oarsh ${LOCAL} "@@DIR@@/run-one.sh ${LOCAL_id} ${LOGDIR}" 
 
 echo finished locally at `date`
-
-
+sleep 3

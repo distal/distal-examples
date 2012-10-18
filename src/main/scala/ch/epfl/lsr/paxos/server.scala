@@ -3,7 +3,7 @@ package ch.epfl.lsr.paxos
 import ch.epfl.lsr.distal._
 import ch.epfl.lsr.netty.protocol.ProtocolLocation
 import collection.Set
-
+import ch.epfl.lsr.performance.{ SimpleSummaryStats, ThreadMonitor }
 import java.util.concurrent.TimeUnit._
 
 
@@ -14,24 +14,46 @@ case class Ordered(pr :Seq[PaxosRequest]) extends Message
 case class EXIT() extends Message
 
 object CONSTANTS extends ImplicitDurations { 
+  val Duration = 240(SECONDS)
+  val Discard = 60
   val ClientCount = 500
-  val ClientRequestPayload = 30
-  val WSZ = 10
+  val ClientRequestPayload = 20
+  val WSZ = 7
   val BATCHTIMEOUT = 10(MILLISECONDS)
   val BSZ = { 
     val ClientRequestSizeOverhead = 20 // or so (depending on string length, and seqno)
-    1500/(ClientRequestSizeOverhead+ClientRequestPayload)
+    1 max (1300/(ClientRequestSizeOverhead+ClientRequestPayload)) 
   }
+  println("WSZ=%d BSZ=%d SZ=%d #cl=%d".format(WSZ, BSZ, ClientRequestPayload, ClientCount))
 }
 
 
 // PAXOS
-class PaxosServer(ID:String) extends Legislator(ID, new MemoryLedger(1000), Dictator.ID) { 
+class PaxosServer(ID:String) extends FasterLegislator(ID, new MemoryLedger(1000), Dictator.ID) { 
   val server = DSLProtocol.locationForId(classOf[Server], ID)
   var executedUntil :Long = -1
+  val stats = new SimpleSummaryStats { 
+    val getIdentifier = ID
+    val discardFor = CONSTANTS.Discard
+    val collectFor = 10000 // report will be triggered "manually"
+  }
+
+
+  val toBeDecided   = new collection.mutable.HashSet[RequestID]()
+  val toBeProposed  = new collection.mutable.Queue[PaxosRequest]()
+
 
   def decided(d :Decree) = {
-    // println("decided "+d)
+
+    toBeDecided -= d.v.asInstanceOf[PaxosRequest].id
+
+    //println("DECIDED %d toBeProposed %d toBeDecided %d ".format(d.v.asInstanceOf[PaxosRequest].id.seqno, toBeProposed.size, toBeDecided.size))
+
+    if(toBeProposed.nonEmpty) {  // propose next one.
+      proposeRequest(toBeProposed.dequeue)
+    }
+
+    // send of to execution
     val bound = ledger.haveAllWithLessThan 
     val prs :Seq[PaxosRequest] = { 
       (executedUntil + 1) to bound
@@ -40,10 +62,12 @@ class PaxosServer(ID:String) extends Legislator(ID, new MemoryLedger(1000), Dict
     } map { 
       _.v.asInstanceOf[PaxosRequest]
     }
-      
+    
     executedUntil = bound
     
     | SEND Ordered(prs) TO server
+    
+    stats.recordEvent(d.n.toInt)
   }
 
   UPON RECEIVING START DO { 
@@ -51,18 +75,41 @@ class PaxosServer(ID:String) extends Legislator(ID, new MemoryLedger(1000), Dict
 
       println("PAXOS started")
 
-    | AFTER 180(SECONDS) DO { 
-      System.exit(0)
+    //val bean = ThreadMonitor.getBean
+
+    | AFTER CONSTANTS.Duration DO { 
+      //bean.printReport
+      println("STATS: "+stats.report)
+      | AFTER 1(SECONDS) DO { 
+	System exit 0
+      }
     }
 
     | DISCARD msg
   }
 
-  UPON RECEIVING EXIT DO { 
-    msg => 
-      println("AllLessThan "+ ledger.haveAllWithLessThan)
-      System exit 0
+
+  UPON RECEIVING Request DO { 
+    msg =>
+
+      //println("Request %d toBeProposed %d toBeDecided %d ".format(msg.value.asInstanceOf[PaxosRequest].id.seqno, toBeProposed.size, toBeDecided.size))
+      
+      if(toBeDecided.size < CONSTANTS.WSZ) { 
+	toBeDecided += msg.value.asInstanceOf[PaxosRequest].id
+	proposeRequest(msg.value)
+      } else { 
+	toBeProposed += msg.value.asInstanceOf[PaxosRequest]
+      }
+
+    | DISCARD msg
   }
+
+
+//  UPON RECEIVING EXIT DO { 
+//    msg => 
+//      println("AllLessThan "+ ledger.haveAllWithLessThan)
+//      System exit 0
+//  }
 }
 
 // CLIENT-HANDLER
@@ -103,7 +150,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
       def get = { 
 	val rv = buffer
 
-	//println("BATCH of size "+count)
+	// println("BATCH of size "+count)
 	version += 1
 	buffer = Nil
 	count = 0
@@ -118,8 +165,6 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
   val paxos = DSLProtocol.locationForId(classOf[PaxosServer], ID)
   //val executor = new Executor(ID+".exe", LOCATION+"/exec")
   
-  val toPropose  = new collection.mutable.Queue[Array[ClientRequest]]()
-  val toBeDecided  = new collection.mutable.HashSet[RequestID]()
   val clientLocations = new collection.mutable.HashMap[String,ProtocolLocation]()
   val batcher = new Batcher
   
@@ -130,10 +175,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
     batcher += msg
     
     if(batcher.isFull) { 
-      if(toBeDecided.size < CONSTANTS.WSZ)
-	propose(batcher.get)
-      else 
-	toPropose.enqueue(batcher.get)
+      propose(batcher.get)
     }
     
     | DISCARD msg
@@ -142,16 +184,12 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
   def propose(reqs :Array[ClientRequest]) = { 
     //println("proposing "+req.id+" "+(new java.util.Date))
     val pr = PaxosRequest(nextReqId, reqs)
-    toBeDecided += pr.id
     | SEND Request(pr) TO paxos
   }
 
   UPON RECEIVING Ordered DO { 
     msg =>
       msg.pr.foreach { 
-	if(toPropose.nonEmpty) {  // send new one
-	  propose(toPropose.dequeue)
-	}
 	execute(_)
       }
 
@@ -160,8 +198,6 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
 
   def execute(pr :PaxosRequest) = { 
     
-    toBeDecided -= pr.id
-
     pr.crs foreach { 
       cr => 
 	val returnValue = cr.value 	// TODO do something more usefull with value
@@ -175,13 +211,13 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
 
   UPON RECEIVING START DO { 
     msg =>
-      println("SERVER started")
+      //println("SERVER started")
     | DISCARD msg
   }
 
-  UPON RECEIVING EXIT DO { 
-    msg => 
-      | SEND msg TO paxos
-  }
+//  UPON RECEIVING EXIT DO { 
+//    msg => 
+//      | SEND msg TO paxos
+//  }
 
 }
