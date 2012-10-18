@@ -18,7 +18,7 @@ object CONSTANTS extends ImplicitDurations {
   val Discard = 60
   val ClientCount = 500
   val ClientRequestPayload = 20
-  val WSZ = 7
+  val WSZ = 15
   val BATCHTIMEOUT = 10(MILLISECONDS)
   val BSZ = { 
     val ClientRequestSizeOverhead = 20 // or so (depending on string length, and seqno)
