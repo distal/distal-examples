@@ -92,8 +92,8 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
   def startBallot() { 
     val b = lastTried + 1
     lastTried = b
-    //println("SENDING "+NextBallot(b, haveAllWithLessThan))
   | SEND NextBallot(b, haveAllWithLessThan) TO ALL
+  | TRIGGER STATECHANGED() // lastTried changed
   }
 
   /*
@@ -113,6 +113,7 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
     msg =>
       //println("GOT NextBallot "+msg.b)
       nextBal = msg.b
+    | TRIGGER STATECHANGED() // nextBal changed
     | SEND LastVote(msg.b,
 		    msg.n,
 		    prevVote, 	    
@@ -295,4 +296,4 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
 	| SEND Elected() TO ALL
       }
   }
-  }
+}

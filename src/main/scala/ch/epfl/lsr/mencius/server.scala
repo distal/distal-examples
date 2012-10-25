@@ -1,4 +1,4 @@
-package ch.epfl.lsr.paxos
+package ch.epfl.lsr.mencius
 
 import ch.epfl.lsr.distal._
 import ch.epfl.lsr.netty.protocol.ProtocolLocation
@@ -6,16 +6,19 @@ import collection.Set
 import ch.epfl.lsr.performance.{ SimpleSummaryStats, ThreadMonitor }
 import java.util.concurrent.TimeUnit._
 
-import ch.epfl.lsr.client._
 import ch.epfl.lsr.common._
+import ch.epfl.lsr.client._
 
-case class PaxosRequest(id: RequestID, crs: Array[ClientRequest]) extends Message 
+case class MenciusValue(id: RequestID, crs: Array[ClientRequest]) extends Message 
+case class Ordered(mv :MenciusValue) extends Message
 
-case class Ordered(pr :Seq[PaxosRequest]) extends Message
+class MenciusServer(ID :String) extends RSM(ID) { 
+  val alpha :InstanceNr = 20
+  val beta :InstanceNr  = 20
+  val tau :Duration     = 5(MILLISECONDS)
 
+  println("ALL: "+ALL.mkString)
 
-// PAXOS
-class PaxosServer(ID:String) extends FasterLegislator(ID, new MemoryLedger(1000), Dictator.ID) { 
   val server = DSLProtocol.locationForId(classOf[Server], ID)
   var executedUntil :Long = -1
   val stats = new SimpleSummaryStats { 
@@ -24,42 +27,18 @@ class PaxosServer(ID:String) extends FasterLegislator(ID, new MemoryLedger(1000)
     val collectFor = 10000 // report will be triggered "manually"
   }
 
+  def OnCommit(v: Value) { 
+    val mv = v.asInstanceOf[MenciusValue]
 
-  val toBeDecided   = new collection.mutable.HashSet[RequestID]()
-  val toBeProposed  = new collection.mutable.Queue[PaxosRequest]()
-
-
-  def decided(d :Decree) = {
-
-    toBeDecided -= d.v.asInstanceOf[PaxosRequest].id
-
-    //println("DECIDED %d toBeProposed %d toBeDecided %d ".format(d.v.asInstanceOf[PaxosRequest].id.seqno, toBeProposed.size, toBeDecided.size))
-
-    if(toBeProposed.nonEmpty) {  // propose next one.
-      proposeRequest(toBeProposed.dequeue)
-    }
-
-    // send of to execution
-    val bound = ledger.haveAllWithLessThan 
-    val prs :Seq[PaxosRequest] = { 
-      (executedUntil + 1) to bound
-    } map { 
-      ledger.getDecision(_).get // shouldn't be empty
-    } map { 
-      _.v.asInstanceOf[PaxosRequest]
-    }
+    | SEND Ordered(mv) TO server
     
-    executedUntil = bound
-    
-    | SEND Ordered(prs) TO server
-    
-    stats.recordEvent(d.n.toInt)
+    stats.recordEvent(mv.id.seqno.toInt)
   }
 
   UPON RECEIVING START DO { 
     msg =>
 
-      println("PAXOS started")
+      println("MENCIUS started")
 
     //val bean = ThreadMonitor.getBean
 
@@ -75,30 +54,15 @@ class PaxosServer(ID:String) extends FasterLegislator(ID, new MemoryLedger(1000)
   }
 
 
-  UPON RECEIVING Request DO { 
-    msg =>
 
-      //println("Request %d toBeProposed %d toBeDecided %d ".format(msg.value.asInstanceOf[PaxosRequest].id.seqno, toBeProposed.size, toBeDecided.size))
-      
-      if(toBeDecided.size < CONSTANTS.WSZ) { 
-	toBeDecided += msg.value.asInstanceOf[PaxosRequest].id
-	proposeRequest(msg.value)
-      } else { 
-	toBeProposed += msg.value.asInstanceOf[PaxosRequest]
-      }
-
-    | DISCARD msg
+  UPON RECEIVING MenciusValue DO { 
+    mv =>
+      OnClientRequest(mv)       
+ 
+    | DISCARD mv
   }
-
-
-//  UPON RECEIVING EXIT DO { 
-//    msg => 
-//      println("AllLessThan "+ ledger.haveAllWithLessThan)
-//      System exit 0
-//  }
 }
 
-// CLIENT-HANDLER
 class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs { 
   self =>
 
@@ -145,19 +109,15 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
       }
     }
     
+  val mencius = DSLProtocol.locationForId(classOf[MenciusServer], ID)
 
-    println("SERVER created")
-
-  val paxos = DSLProtocol.locationForId(classOf[PaxosServer], ID)
-  //val executor = new Executor(ID+".exe", LOCATION+"/exec")
-  
   val clientLocations = new collection.mutable.HashMap[String,ProtocolLocation]()
   val batcher = new Batcher
   
   UPON RECEIVING ClientRequest DO { 
     msg =>
     clientLocations.update(msg.id.ID, SENDER)
-
+    
     batcher += msg
     
     if(batcher.isFull) { 
@@ -168,26 +128,21 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
   }
 
   def propose(reqs :Array[ClientRequest]) = { 
-    val pr = PaxosRequest(nextReqId, reqs)
-    println("propose "+pr.id)
-    | SEND Request(pr) TO paxos
+    | SEND MenciusValue(nextReqId, reqs) TO mencius
   }
 
   UPON RECEIVING Ordered DO { 
     msg =>
-      msg.pr.foreach { 
-	execute(_)
-      }
+      execute(msg.mv)
 
     | DISCARD msg    
   }
 
-  def execute(pr :PaxosRequest) = { 
-    println("execute "+pr.id)
-    
-    pr.crs foreach { 
+  def execute(mv :MenciusValue) = { 
+    mv.crs foreach { 
       cr => 
 	val returnValue = cr.value 	// TODO do something more usefull with value
+
 	clientLocations.get(cr.id.ID) foreach { 
 	  protoloc => 
 	    | SEND ClientResponse(cr.id, returnValue) TO protoloc
@@ -197,13 +152,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
 
   UPON RECEIVING START DO { 
     msg =>
-      //println("SERVER started")
+      println("SERVER started")
     | DISCARD msg
   }
-
-//  UPON RECEIVING EXIT DO { 
-//    msg => 
-//      | SEND msg TO paxos
-//  }
-
 }
