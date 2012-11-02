@@ -1,7 +1,7 @@
 package ch.epfl.lsr.paxos
 
 import ch.epfl.lsr.distal._
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
+import ch.epfl.lsr.netty.network.ProtocolLocation
 import collection.Set
 
 import ch.epfl.lsr.performance.{ SimpleSummaryStats, ThreadMonitor }
@@ -16,6 +16,8 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   val SZ = CONSTANTS.ClientRequestPayload
   val replicas = DSLProtocol.getAll(classOf[Server])
   
+  override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]  
+
   val clients = (1 to count).map { 
     i => 
       new Client(ID+"."+i, LOCATION/i.toString, SZ, replicas.head)

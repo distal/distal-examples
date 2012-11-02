@@ -1,7 +1,7 @@
 package ch.epfl.lsr.mencius
 
 import ch.epfl.lsr.distal._
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
+import ch.epfl.lsr.protocol.ProtocolLocation
 import collection.mutable.HashMap
 import collection.immutable.Set
 

@@ -1,7 +1,7 @@
 package ch.epfl.lsr.mencius
 
 import ch.epfl.lsr.distal._
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
+import ch.epfl.lsr.netty.network.ProtocolLocation
 import collection.Set
 
 import ch.epfl.lsr.performance.{ SimpleSummaryStats, ThreadMonitor }
@@ -16,6 +16,7 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   val count = CONSTANTS.ClientCount
   val SZ = CONSTANTS.ClientRequestPayload
   val replicas = DSLProtocol.getAll(classOf[Server]).toIndexedSeq
+  override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]
 
   val clients = (1 to count).map { 
     i => 

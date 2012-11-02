@@ -1,6 +1,5 @@
 package ch.epfl.lsr 
 
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
 import ch.epfl.lsr.common.RequestID
 import ch.epfl.lsr.client.ClientRequest
 

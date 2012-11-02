@@ -1,7 +1,7 @@
 package ch.epfl.lsr.paxos
 
 import ch.epfl.lsr.distal._
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
+import ch.epfl.lsr.protocol.ProtocolLocation
 import collection.Set
 
 import java.util.concurrent.TimeUnit._
@@ -61,7 +61,6 @@ case class Elected() extends Message
 /* Section 3.1:  in the Synod protocol, the president does not choose the decree or the quorum until step 3. */
 // so we implement the first two steps from section 2.3
 /*
- *
  * (A NextBallot(b) message is ignored if b ≤ nextBal[q].)
  */
 abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president : => LegislatorName) extends DSLProtocol { 
@@ -119,7 +118,6 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
 		    prevVote, 	    
 		    alreadyInLedgerGreaterThan(msg.n), 
 		    Map(ID -> missingUpTo(msg.n))) TO SENDER
-
     | DISCARD msg
   }
 
@@ -218,7 +216,7 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
     | DISCARD msg
   }
   
-   // (5) If $p$ has received a $Voted(b, q)$ message from every priest 
+  // (5) If $p$ has received a $Voted(b, q)$ message from every priest 
   // $q$ in $Q$ (the quorum for ballot number $b$), where $b = lastTried[p]$, 
   // then he writes $d$ (the decree of that ballot) in his ledger and sends 
   // a Success(d) message to every priest.

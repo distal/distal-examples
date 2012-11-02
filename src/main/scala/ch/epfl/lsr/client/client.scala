@@ -1,7 +1,7 @@
 package ch.epfl.lsr.client
 
 import ch.epfl.lsr.distal._
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
+import ch.epfl.lsr.protocol.ProtocolLocation
 import ch.epfl.lsr.performance.SimpleSummaryStats
 import ch.epfl.lsr.common.CONSTANTS
 import ch.epfl.lsr.common.{ RequestID, NumberedRequestIDs }
