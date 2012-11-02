@@ -13,9 +13,13 @@ case class PaxosRequest(id: RequestID, crs: Array[ClientRequest]) extends Messag
 
 case class Ordered(pr :Seq[PaxosRequest]) extends Message
 
+object PaxosServer { 
+  val replicas = DSLProtocol.getAll(classOf[Server])
+  val leader = replicas.head
+}
 
 // PAXOS
-class PaxosServer(ID:String) extends FasterLegislator(ID, new MemoryLedger(1000), Dictator.ID) { 
+class PaxosServer(ID:String) extends FasterLegislator(ID, new MemoryLedger(1000), DSLProtocol.idForLocation(PaxosServer.leader)) { 
   val server = DSLProtocol.locationForId(classOf[Server], ID)
   var executedUntil :Long = -1
   val stats = new SimpleSummaryStats { 
@@ -169,7 +173,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
 
   def propose(reqs :Array[ClientRequest]) = { 
     val pr = PaxosRequest(nextReqId, reqs)
-    println("propose "+pr.id)
+    //println("propose "+pr.id)
     | SEND Request(pr) TO paxos
   }
 
@@ -183,7 +187,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
   }
 
   def execute(pr :PaxosRequest) = { 
-    println("execute "+pr.id)
+    //println("execute "+pr.id)
     
     pr.crs foreach { 
       cr => 

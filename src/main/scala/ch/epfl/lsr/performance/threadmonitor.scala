@@ -14,11 +14,12 @@ object ThreadMonitor {
       b setThreadContentionMonitoringEnabled true
       b
     }
+    val startTime = System.currentTimeMillis
 
     def printReport { 
       import bean._
       
-      println("THREAD  id:   time   user   wait  block  times name")
+      println("THREAD  id:   time   user   wait  block  times name "+ (System.currentTimeMillis - startTime))
       getAllThreadIds.foreach { 
 	id =>
 	  val info = getThreadInfo(id, 0) // 0 == no stack trace

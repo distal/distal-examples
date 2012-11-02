@@ -5,6 +5,9 @@ import ch.epfl.lsr.protocol.ProtocolLocation
 import collection.mutable.HashMap
 import collection.immutable.Set
 
+import ch.epfl.lsr.common._
+import ch.epfl.lsr.performance._
+
 trait Learned { 
   def apply(i :InstanceNr) :Option[Value]
   def update(i :InstanceNr, v :Value) :Unit
@@ -32,6 +35,20 @@ trait Mencius extends DSLProtocol with MenciusTimers {
   val p :ServerID = ID
   def ALL_IDs :Array[ServerID] = ALL.map(DSLProtocol.idForLocation)
   import language.postfixOps
+
+  val instancestats = new SimpleSummaryStats { 
+    val getIdentifier = ID
+    val discardFor = CONSTANTS.Discard
+    val collectFor = 10000 // report will be triggered "manually"
+  }
+
+  UPON RECEIVING START DO { 
+    msg =>
+      | AFTER CONSTANTS.Duration DO { 
+	println("STATS(instances): "+ instancestats.report)
+      }
+    | DISCARD msg
+  }
 
   // UpCalls
   def OnCommit(v :Value) :Unit
@@ -71,7 +88,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
   
   // variable: index \leftarrow min{i : owner(i) = p}; 
   /* The next instance to suggest a value to.	*/
-  var index :InstanceNr = instanceNumbers(-1).find { i => owner(i) == p } get
+  var index :InstanceNr = instanceNumbers().find { i => owner(i) == p } get
 
   // variable: est_index[ ]; 
   /* An array records the estimated index of other servers.
@@ -93,6 +110,10 @@ trait Mencius extends DSLProtocol with MenciusTimers {
   
   // DownCall OnClientRequest(v)
   def OnClientRequest(v :Value) { 
+    instancestats.recordEvent(expected)
+
+    println("OnClientRequest:"+v.id)
+
     /* By Optimization 2, S K I P messages piggybacked on S U G G E S T
      * messages. cancel the timers that were previously set for
      * Accelerator 1 and reset the records of the outstanding SKIPs.
@@ -109,7 +130,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     // proposed[index] \leftarrow v
     proposed(index) = v
     // index \leftarrow min{i : owner(i)=p \wedge i > index 
-    index = instanceNumbers(index) find { i => owner(i) == p } get
+    index = instanceNumbers(index) find { i => (owner(i) == p) } get
   }
 
   //UpCall OnAcceptSuggestion(i, q) 
@@ -132,12 +153,15 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     //     Call CheckCommit;
     // end
     for (j <- QSkipSet) { 
+//      println("noop by optimization 1: "+j+" i="+i+" est="+est_index(q))
       learned(j) = noop
       CheckCommit
     }
     
     // est_index[q] ← min{j : j > i ∧ owner(j) = q};
-    est_index(q) = instanceNumbers(i) find { j => owner(j) == q} get
+    // BUG !? in pseudo-code: if est_index > i, resets est_index to already used index
+    // est_index(q) = instanceNumbers(i) find { j => owner(j) == q} get
+    est_index(q) = est_index(q) max (instanceNumbers(i) find { j => owner(j) == q } get)
   }
 
   // UpCall OnSuggestion(i)	
@@ -157,6 +181,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     //     learned(j) ← no-op; 
     // end
     for (j <- QSkipSet) { 
+//      println("noop by optimization 2: "+j)
       learned(j) = noop
     }
 
@@ -177,6 +202,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     // end 
     // Call CheckCommit;
     for (k <- SkipSet) { 
+//      println("noop by rule 2: "+k)
       learned(k) = noop
     }
     CheckCommit
@@ -225,7 +251,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     /* Rule 3: p revokes q for large block of instances,
       when suspecting server q has failed. */ 
     // C_q = min{i : owner(i) = q ∧ learned(i) = ⊥}; 
-    val Cq = instanceNumbers() find { i => owner(i) == q && learned(i) == bot} get
+    val Cq = instanceNumbers() find { i => (owner(i) == q) && (learned(i) == bot) } get
 
     //if C_q <index+β then
     //   RevokeSet←{i:Cq ≤i≤ index + 2β ∧ owner(i) = q ∧ learned(i) = ⊥} ; 
@@ -252,6 +278,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     // Call CheckCommit;
 
     if (owner(i) == p && (v==noop || proposed(i).id != v.id)) {  // IMPL compare ids to make it faster
+      println("repropose")
       OnClientRequest(proposed(i))
     }
     CheckCommit
@@ -290,10 +317,12 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     // end
     while (learned(expected).nonEmpty) { 
       val v :Value = learned(expected).get
-      if ((v != noop) && !(0 until expected flatMap { i => learned(i) } contains v)) { 
+      if ((v != noop) && (0 until expected find { i => learned(i) == v }).isEmpty) { 
+      // if ((v != noop)) { 
+	println("Commit:"+expected+" "+v.id)
 	OnCommit(v)
       } else if(v == noop) { 
-	println("commiting noop for "+ expected)
+	println("Commit:"+ expected+" no-op")
       }
       expected = expected + 1
     }

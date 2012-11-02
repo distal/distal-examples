@@ -23,6 +23,8 @@ class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :In
 
   val value = Array.fill[Byte](SZ) { 1 }
   var leader = initialLeader
+
+  println("Client "+ID+" starting with leader "+leader)
   
   UPON RECEIVING START DO { 
     msg =>
@@ -35,7 +37,6 @@ class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :In
     msg => 
       assert(isPrevId(msg.id), "response: "+msg.id+" local"+seqno+"ID "+ID)
 
-    println(msg)
     | SEND ClientRequest(nextReqId, value) TO leader
       stats.recordEvent(seqno)
 

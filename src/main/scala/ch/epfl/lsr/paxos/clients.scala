@@ -14,18 +14,16 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   // TODO from config
   val count = CONSTANTS.ClientCount
   val SZ = CONSTANTS.ClientRequestPayload
-  val replicas = DSLProtocol.getAll(classOf[Server])
-  
   override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]  
 
   val clients = (1 to count).map { 
     i => 
-      new Client(ID+"."+i, LOCATION/i.toString, SZ, replicas.head)
+      new Client(ID+"."+i, LOCATION/i.toString, SZ, PaxosServer.leader)
   } 
 
   UPON RECEIVING START DO { 
     m => 
-//      val bean = ThreadMonitor.getBean
+      //      val bean = ThreadMonitor.getBean
 
       | AFTER 6(SECONDS) DO { 
 	clients.foreach{ _.start }

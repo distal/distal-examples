@@ -25,14 +25,14 @@ class ClientStarter(val ID :String) extends DSLProtocol {
 
   UPON RECEIVING START DO { 
     m => 
-//      val bean = ThreadMonitor.getBean
+      val bean = ThreadMonitor.getBean
 
       | AFTER 6(SECONDS) DO { 
 	clients.foreach{ _.start }
       }
       | AFTER CONSTANTS.Duration DO { 
 
-	//bean.printReport
+	bean.printReport
 
 	| SEND RequestReport() TO clients
       }

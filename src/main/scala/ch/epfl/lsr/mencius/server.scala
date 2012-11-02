@@ -1,7 +1,7 @@
 package ch.epfl.lsr.mencius
 
 import ch.epfl.lsr.distal._
-import ch.epfl.lsr.netty.protocol.ProtocolLocation
+import ch.epfl.lsr.protocol.ProtocolLocation
 import collection.Set
 import ch.epfl.lsr.performance.{ SimpleSummaryStats, ThreadMonitor }
 import java.util.concurrent.TimeUnit._
@@ -27,8 +27,20 @@ class MenciusServer(ID :String) extends RSM(ID) {
     val collectFor = 10000 // report will be triggered "manually"
   }
 
+  
+  val toBeDecided   = new collection.mutable.HashSet[RequestID]()
+  val toBeProposed  = new collection.mutable.Queue[MenciusValue]()
+
+
   def OnCommit(v: Value) { 
     val mv = v.asInstanceOf[MenciusValue]
+
+    toBeDecided -= mv.id
+
+    if(toBeProposed.nonEmpty) {  // propose next one.
+      OnClientRequest(toBeProposed.dequeue)
+    }
+
 
     | SEND Ordered(mv) TO server
     
@@ -40,11 +52,11 @@ class MenciusServer(ID :String) extends RSM(ID) {
 
       println("MENCIUS started")
 
-    //val bean = ThreadMonitor.getBean
+    val bean = ThreadMonitor.getBean
 
     | AFTER CONSTANTS.Duration DO { 
-      //bean.printReport
-      println("STATS: "+stats.report)
+      bean.printReport
+      println("STATS(commmits): "+stats.report)
       | AFTER 1(SECONDS) DO { 
 	System exit 0
       }
@@ -57,7 +69,14 @@ class MenciusServer(ID :String) extends RSM(ID) {
 
   UPON RECEIVING MenciusValue DO { 
     mv =>
-      OnClientRequest(mv)       
+      
+      if(toBeDecided.size < (CONSTANTS.WSZ/ALL.size)) { 
+	toBeDecided += mv.id
+	OnClientRequest(mv)       
+      } else { 
+	toBeProposed += mv
+      }
+
  
     | DISCARD mv
   }
@@ -128,6 +147,7 @@ class Server(val ID:String) extends DSLProtocol with NumberedRequestIDs {
   }
 
   def propose(reqs :Array[ClientRequest]) = { 
+    
     | SEND MenciusValue(nextReqId, reqs) TO mencius
   }
 

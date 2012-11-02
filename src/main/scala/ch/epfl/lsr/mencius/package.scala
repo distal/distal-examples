@@ -13,7 +13,7 @@ package object mencius {
   val bot = None
 
   // instance numbers larger than i
-  def instanceNumbers(i :InstanceNr = 0) :Stream[InstanceNr] = 
+  def instanceNumbers(i :InstanceNr = -1) :Stream[InstanceNr] = 
     Stream.cons(i+1, instanceNumbers(i+1))
   
   def ballotNumbers(b :BallotNr = 0) :Stream[BallotNr] = 

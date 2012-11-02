@@ -6,7 +6,7 @@ import ch.epfl.lsr.distal.{ ImplicitDurations, Duration }
 object CONSTANTS extends ImplicitDurations { 
   val Duration = 240(SECONDS)
   val Discard = 60
-  val ClientCount = 100
+  val ClientCount = 500
   val ClientRequestPayload = 20
   val WSZ = 15
   val BATCHTIMEOUT = 10(MILLISECONDS)

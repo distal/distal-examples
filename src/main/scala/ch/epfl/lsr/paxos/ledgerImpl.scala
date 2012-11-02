@@ -25,7 +25,7 @@ class MemoryLedger(maxSize :Int) extends Ledger {
     previousDecisions = previousDecisions.updated(decree.n, decree)
     if(decree.n == haveAllWithLessThan + 1) incHaveAll
     if(previousDecisions.size > maxSize)
-      previousDecisions = previousDecisions.drop(maxSize/1) // discard oldest third
+      previousDecisions = previousDecisions.drop(maxSize/2) // discard oldest third
   }
 
 
