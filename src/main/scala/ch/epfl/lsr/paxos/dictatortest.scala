@@ -6,12 +6,14 @@ import collection.Set
 
 import java.util.concurrent.TimeUnit._
 import ch.epfl.lsr.performance._
+import ch.epfl.lsr.server._
+import ch.epfl.lsr.common._
 
 object Dictator { 
   lazy val ID = "1"
 } 
 
-class DictatorBasedLegislator(ID :String) extends FasterLegislator(ID, new MemoryLedger(100), Dictator.ID) { 
+class DictatorBasedLegislator(ID :String) extends FasterLegislator(ID, new MemoryLedger(), Dictator.ID) with  NumberedRequestIDs { 
   var lastRequest = -1
 
   val times = new Array[Long](1000)
@@ -46,7 +48,7 @@ class DictatorBasedLegislator(ID :String) extends FasterLegislator(ID, new Memor
   }
 
   val nextRuling = { 
-    Array.fill[Byte](1300) { 1 }
+    RequestBatch(nextReqId, Array.fill[Byte](1300) { 1 })
   }
 
   def startRuling { 

@@ -1,12 +1,12 @@
 package ch.epfl.lsr 
 
 import ch.epfl.lsr.common.RequestID
-import ch.epfl.lsr.client.ClientRequest
+import ch.epfl.lsr.server.RequestBatch
 
 package object mencius { 
   type InstanceNr = Int
   type BallotNr = Int
-  type Value = MenciusValue
+  type Value = RequestBatch
   
   // object noop extends MenciusValue(RequestID("no-op",-1), Array[ClientRequest]())
   val noop :Value = null

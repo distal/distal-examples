@@ -3,7 +3,7 @@ package ch.epfl.lsr.common
 case class RequestID(ID :String, seqno :Long)
 
 trait NumberedRequestIDs { 
-  def ID :String
+  val ID :String
 
   var seqno = -1
 
