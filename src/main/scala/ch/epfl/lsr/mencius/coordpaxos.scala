@@ -138,7 +138,7 @@ trait CoordinatedPaxos extends DSLProtocol {
 	case LEARN(_, _) => 
 	  ()
 	case _ =>
-	  | SEND LEARN(msg.i, state(msg).learned.get) TO SENDER
+         | SEND LEARN(msg.i, state(msg).learned.get) TO SENDER
       }
     | DISCARD msg
   }
@@ -173,7 +173,8 @@ trait CoordinatedPaxos extends DSLProtocol {
   }
 
   // OnMessage ACCEPT(b, v) From q OnCondition learned = \bot
-  UPON RECEIVING ACCEPT WITH learnedIsBot WITH { _.b == 0} DO { 
+//  UPON RECEIVING ACCEPT WITH learnedIsBot WITH { _.b == 0} DO { 
+  UPON RECEIVING ACCEPT WITH { _.b == 0} DO { 
     msg => 
       // if b = 0 then 
       //   /*This A C C E P T message acknowledges a  SUGGEST message. */
@@ -222,7 +223,7 @@ trait CoordinatedPaxos extends DSLProtocol {
       val ha = msgs.maxBy { _.ab }._2
       val hvset = msgs.filter { _.ab == ha } map { _.av }
       assert(hvset.size <= 1)
-    | SEND PROPOSE(msg.i, msg.b, hvset.headOption.getOrElse(noop))
+    | SEND PROPOSE(msg.i, msg.b, hvset.headOption.getOrElse(noop)) TO ALL
     | DISCARD msgs
   }
   
@@ -255,7 +256,9 @@ trait CoordinatedPaxos extends DSLProtocol {
 	state(msg).accepted_ballot = msg.b
 	state(msg).accepted_value = msg.v
 	| SEND ACCEPT(msg.i, msg.b, msg.v) TO SENDER
+
       }
+    | DISCARD msg
   }
 
 }

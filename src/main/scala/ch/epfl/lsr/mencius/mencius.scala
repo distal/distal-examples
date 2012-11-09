@@ -45,7 +45,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
   UPON RECEIVING START DO { 
     msg =>
       | AFTER CONSTANTS.Duration DO { 
-	println("STATS(instances): "+ instancestats.report)
+	println("\nSTATS(instances): "+ instancestats.report)
       }
     | DISCARD msg
   }
@@ -96,7 +96,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
    * Initially, est index[q] ← min{i : owner(i) = q}.
    */ 
   val est_index = new HashMap[ServerID, InstanceNr]{ 
-    override def default(q :ServerID) = instanceNumbers().find { i => owner(i) == p} get
+    override def default(q :ServerID) = instanceNumbers().find { i => owner(i) == q} get
   }
     
   // variable: need to skip[ ]; 
@@ -112,7 +112,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
   def OnClientRequest(v :Value) { 
     instancestats.recordEvent(expected)
 
-    println("OnClientRequest:"+v.id)
+//    println("OnClientRequest:"+v.id)
 
     /* By Optimization 2, S K I P messages piggybacked on S U G G E S T
      * messages. cancel the timers that were previously set for
@@ -140,7 +140,6 @@ trait Mencius extends DSLProtocol with MenciusTimers {
      */
     // begin
     
-    // TODO
     // QSkipSet ← {j : est_index[q] ≤ j < i ∧ owner(j) = q}; 
     val QSkipSet = est_index(q) until i filter { j => owner(j) == q }
     /* By Optimization 1: S K I P messages are piggybacked on this
@@ -166,6 +165,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
 
   // UpCall OnSuggestion(i)	
   def OnSuggestion(i :InstanceNr) { 
+
     /*Upon receiving SUGGEST message for instance i. */
     // begin 
     // q ← owner(i); /*q is the sender of the SUGGEST message. */
@@ -191,7 +191,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     // est_index[q] ← min{j : j > i ∧ owner(j) = q};
     est_index(q) = instanceNumbers(i) find { j => owner(j) == q} get
  
-    // SkipSet ← {j : j ≥ index ∧ j < i∧owner(j) = p}; 
+    // SkipSet ← {j : j ≥ index ∧ j < i ∧ owner(j) = p}; 
     val SkipSet = index until i filter { j => owner(j) == p }
     /* By Rule 2, server p skips all unused instances smaller than i.
      * SkipSet is the set of instances p needs to skip.
@@ -220,6 +220,7 @@ trait Mencius extends DSLProtocol with MenciusTimers {
       // if need to skip[k] = {} then
       if (need_to_skip(k).isEmpty) { 
 	/* Set timer for Accelerator */
+	need_to_skip(k) = need_to_skip(k) ++ SkipSet
 	SetTimer(k, tau);	
 	/* Set the kth timer to trigger at τ unit time from now */
       } else {  
@@ -317,12 +318,12 @@ trait Mencius extends DSLProtocol with MenciusTimers {
     // end
     while (learned(expected).nonEmpty) { 
       val v :Value = learned(expected).get
-      if ((v != noop) && (0 until expected find { i => learned(i) == v }).isEmpty) { 
-      // if ((v != noop)) { 
-	println("Commit:"+expected+" "+v.id)
+      //if ((v != noop) && (0 until expected find { i => learned(i) == v }).isEmpty) { 
+      if ((v != noop)) { 
+//	println("Commit:"+expected+" "+v.id)
 	OnCommit(v)
       } else if(v == noop) { 
-	println("Commit:"+ expected+" no-op")
+//	println("Commit:"+ expected+" no-op")
       }
       expected = expected + 1
     }
@@ -340,7 +341,7 @@ trait MenciusTimers extends DSLProtocol {
   }
 
   def SetTimer(k :ServerID, duration :Duration) { 
-    activeTimers.remove(k)
+    activeTimers.add(k)
     | AFTER duration DO { 
       if(activeTimers.contains(k)) { 
 	activeTimers.remove(k)
