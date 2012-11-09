@@ -3,6 +3,7 @@ package ch.epfl.lsr.mencius
 import ch.epfl.lsr.distal._
 import collection.immutable.HashSet
 import collection.mutable.HashMap
+import ch.epfl.lsr.common.BoundedMap
 
 abstract class PaxosMessage extends Message { 
   def i :InstanceNr
@@ -85,10 +86,13 @@ trait CoordinatedPaxos extends DSLProtocol {
     def accepted_value_=(v :Value) { accepted_value = Some(v) }
   }
 
-  val _states = HashMap.empty[InstanceNr, InstanceState]
+  var _states = BoundedMap.empty[InstanceNr, InstanceState]()
   def state(msg :PaxosMessage) :InstanceState = state(msg.i)
-  def state(i :InstanceNr) :InstanceState = _states.getOrElseUpdate(i, new InstanceState(i))
-
+  def state(i :InstanceNr) :InstanceState = _states.get(i).getOrElse { 
+    val inst = new InstanceState(i)
+    _states = _states.updated(i, inst)
+    inst
+  }
   
   // UpCalls:
   def OnLearned(i :InstanceNr, v :Value) 

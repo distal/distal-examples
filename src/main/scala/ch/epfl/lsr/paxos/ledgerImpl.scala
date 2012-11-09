@@ -4,12 +4,12 @@ import ch.epfl.lsr.distal._
 import ch.epfl.lsr.protocol.ProtocolLocation
 import collection.Set
 import collection.immutable.TreeMap
+import ch.epfl.lsr.common.BoundedMap
 
-
-class MemoryLedger(maxSize :Int) extends Ledger { 
+class MemoryLedger() extends Ledger { 
   var haveAllWithLessThan :DecreeNr = 0
   
-  var previousDecisions = TreeMap[DecreeNr,Decree]()
+  var previousDecisions = BoundedMap.empty[DecreeNr,Decree]()
   
   def missingUpTo(n :DecreeNr) :Set[DecreeNr] = 
     (haveAllWithLessThan to n).filterNot(previousDecisions.contains).toSet
@@ -24,8 +24,6 @@ class MemoryLedger(maxSize :Int) extends Ledger {
   def note(decree :Decree) { 
     previousDecisions = previousDecisions.updated(decree.n, decree)
     if(decree.n == haveAllWithLessThan + 1) incHaveAll
-    if(previousDecisions.size > maxSize)
-      previousDecisions = previousDecisions.drop(maxSize/2) // discard oldest third
   }
 
 
