@@ -24,10 +24,10 @@ object AsyncRoundsBuild extends Build {
 	 typesafe,
 	 typesafeSnapshot
        ),
-      //name := "async-rounds",
+      name := "distal-paxos",
       organization := "ch.epfl.lsr",
       version := "0.1-SNAPSHOT",
-      scalaVersion := "2.10.0-M7",
+      scalaVersion := "2.10.0-RC1",
       scalacOptions ++= Seq("-deprecation", "-feature"), 
       fork := true
      ) ++ PrivateSettings()
