@@ -16,24 +16,24 @@ object ThreadMonitor {
     }
     val startTime = System.currentTimeMillis
 
-    def printReport { 
+    def reportString = { 
       import bean._
       
-      println("THREAD  id:   time   user   wait  block  times name "+ (System.currentTimeMillis - startTime))
-      getAllThreadIds.foreach { 
+      ("THREAD  id:   time   user   wait  block  times name "+ (System.currentTimeMillis - startTime))+"\n"+
+      (getAllThreadIds.map { 
 	id =>
 	  val info = getThreadInfo(id, 0) // 0 == no stack trace
-	
-	
-	  println("THREAD %3x: %6d %6d %6d %6d %6d %s".format(id,
+	  "THREAD %3x: %6d %6d %6d %6d %6d %s".format(id,
 						      MILLISECONDS.convert( getThreadCpuTime(id), NANOSECONDS), 
 						      MILLISECONDS.convert( getThreadUserTime(id), NANOSECONDS),
 						      info.getWaitedTime,
 						      info.getBlockedTime,
 						      info.getBlockedCount,
-						      info.getThreadName))
-      }
+						      info.getThreadName)
+      }.mkString("\n"))
     }
+    
+    def printReport = println("\n"+reportString)
   }
 
   private lazy val thehook = { 
