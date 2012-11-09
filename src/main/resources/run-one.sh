@@ -17,8 +17,9 @@ OPTS="${OPTS} -cp ${CLASSPATH}"
 OPTS="${OPTS} -Dprotocols.conf.url=file://${LOG_DIR}/protocols.conf "
 OPTS="${OPTS} -Dnodes.list.url=file://${LOG_DIR}/nodes "
 
+COMMAND="java ${OPTS} ch.epfl.lsr.distal.deployment.DSLProtocolRunner ${LOCAL_ID}"
 
 (echo ID: ${LOCAL_ID} LOGDIR: ${LOG_DIR} HOST: ${LOCAL}
-echo java $OPTS ch.epfl.lsr.distal.DSLProtocolRunner ${LOCAL_ID};
-/usr/bin/time -v java $OPTS ch.epfl.lsr.distal.DSLProtocolRunner ${LOCAL_ID} 
+echo running ${COMMAND}
+/usr/bin/time -v ${COMMAND}
 ) >> ${LOG_DIR}/${LOCAL_ID}.log 2>&1

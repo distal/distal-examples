@@ -21,6 +21,7 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   val clients = (1 to count).map { 
     i => 
       new Client(ID+"."+i, LOCATION/i.toString, SZ, randomElement(replicas))
+      //new Client(ID+"."+i, LOCATION/i.toString, SZ, replicas.head)
   } 
 
   UPON RECEIVING START DO { 
