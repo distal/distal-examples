@@ -54,8 +54,6 @@ case class BeginBallot(b :BallotNr, d :Decree) extends Message
 case class Voted(b :BallotNr, d :Decree) extends Message
 case class Success(b :BallotNr, d :Decree) extends Message
 
-case class Request(value :DecreeValue) extends Message
-case class Reply(d :Decree) extends Message
 case class Elected() extends Message
 
 /* Section 3.1:  in the Synod protocol, the president does not choose the decree or the quorum until step 3. */
