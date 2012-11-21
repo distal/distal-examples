@@ -1,6 +1,6 @@
 package ch.epfl.lsr.common 
 
-case class RequestID(ID :String, seqno :Long)
+case class RequestID(ID :String, seqno :Int)
 
 trait NumberedRequestIDs { 
   val ID :String

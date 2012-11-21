@@ -19,7 +19,7 @@ class DictatorBasedLegislator(ID :String) extends FasterLegislator(ID, new Memor
   val times = new Array[Long](1000)
 
   val STARTUPDELAY = 15
-  val windowSZ = 10
+  val windowSZ = CONSTANTS.WSZ
 
   val stats = new SimpleSummaryStats { 
     val getIdentifier = ID
@@ -48,7 +48,7 @@ class DictatorBasedLegislator(ID :String) extends FasterLegislator(ID, new Memor
   }
 
   val nextRuling = { 
-    RequestBatch(nextReqId, Array.fill[Byte](1300) { 1 })
+    RequestBatch(nextReqId, Array.fill[Byte](1024) { 1 })
   }
 
   def startRuling { 
