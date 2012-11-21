@@ -11,14 +11,15 @@ import ch.epfl.lsr.common.CONSTANTS
 import ch.epfl.lsr.client._
 
 class ClientStarter(val ID :String) extends DSLProtocol { 
-  // TODO from config
+
   val count = CONSTANTS.ClientCount
   val SZ = CONSTANTS.ClientRequestPayload
   override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]  
-
+  val intID = ID.toInt
+  
   val clients = (1 to count).map { 
     i => 
-      new Client(ID+"."+i, LOCATION/i.toString, SZ, PaxosServer.leader)
+      new Client((i*ALL.size+intID).toString, LOCATION/i.toString, SZ, PaxosServer.leader)
   } 
 
   UPON RECEIVING START DO { 
@@ -40,7 +41,7 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   UPON RECEIVING Report TIMES count DO { 
     msgs => 
 
-      println(msgs.toSeq.sortBy(msg => (msg.ID.drop(2)).toInt).map(_.report).mkString("\nSTATS: "))
+      println(msgs.toSeq.sortBy(msg => msg.ID.toInt).map(_.report).mkString("\nSTATS: "))
 
     // | SEND EXIT() TO replicas
     

@@ -17,23 +17,28 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   val SZ = CONSTANTS.ClientRequestPayload
   val replicas = DSLProtocol.getAll(classOf[Server]).toIndexedSeq
   override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]
+  val intID = ID.toInt
 
   val clients = (1 to count).map { 
     i => 
-      new Client(ID+"."+i, LOCATION/i.toString, SZ, randomElement(replicas))
-      //new Client(ID+"."+i, LOCATION/i.toString, SZ, replicas.head)
+      val id = (i*ALL.size+intID).toString
+      assert(id.toInt > 0)
+      new Client(id, LOCATION/i.toString, SZ, randomElement(replicas))
+    //new Client(id, LOCATION/i.toString, SZ, replicas.head)
   } 
 
   UPON RECEIVING START DO { 
     m => 
-      val bean = ThreadMonitor.getBean
+//      val bean = ThreadMonitor.getBean
 
       | AFTER 6(SECONDS) DO { 
 	clients.foreach{ _.start }
       }
       | AFTER CONSTANTS.Duration DO { 
 
-	bean.printReport
+
+	
+//	bean.printReport
 
 	| SEND RequestReport() TO clients
       }
@@ -43,7 +48,7 @@ class ClientStarter(val ID :String) extends DSLProtocol {
   UPON RECEIVING Report TIMES count DO { 
     msgs => 
 
-      println(msgs.toSeq.sortBy(msg => (msg.ID.drop(2)).toInt).map(_.report).mkString("\nSTATS: "))
+      println(msgs.toSeq.sortBy(msg => msg.ID.toInt).map(_.report).mkString("\nSTATS: ", "\nSTATS: ", "\n"))
 
     // | SEND EXIT() TO replicas
     

@@ -24,7 +24,7 @@ class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :In
   val value = Array.fill[Byte](SZ) { 1 }
   var leader = initialLeader
 
-  println("Client "+ID+" starting with leader "+leader)
+  // println("Client "+ID+" starting with leader "+leader)
   
   UPON RECEIVING START DO { 
     msg =>
