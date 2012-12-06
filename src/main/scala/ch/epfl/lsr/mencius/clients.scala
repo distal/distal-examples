@@ -1,6 +1,7 @@
 package ch.epfl.lsr.mencius
 
 import ch.epfl.lsr.distal._
+import ch.epfl.lsr.protocol.{ ProtocolLocation => PL }
 import ch.epfl.lsr.netty.network.ProtocolLocation
 import collection.Set
 
@@ -10,22 +11,39 @@ import java.util.concurrent.TimeUnit._
 import ch.epfl.lsr.common.Random.{ nextElement => randomElement }
 import ch.epfl.lsr.client._
 import ch.epfl.lsr.common.CONSTANTS
+import ch.epfl.lsr.server._
 
-class ClientStarter(val ID :String) extends DSLProtocol { 
-  // TODO from config
-  val count = CONSTANTS.ClientCount
-  val SZ = CONSTANTS.ClientRequestPayload
-  val replicas = DSLProtocol.getAll(classOf[Server]).toIndexedSeq
-  override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]
-  val intID = ID.toInt
-
+class MultiLeaderClientStarter(ID :String) extends ClientStarter(ID) { 
+  val replicas  = DSLProtocol.getAll(classOf[Server]).toIndexedSeq
   val clients = (1 to count).map { 
     i => 
       val id = (i*ALL.size+intID).toString
       assert(id.toInt > 0)
-      new Client(id, LOCATION/i.toString, SZ, randomElement(replicas))
+    new Client(id, LOCATION/i.toString, SZ, randomElement(replicas))
     //new Client(id, LOCATION/i.toString, SZ, replicas.head)
   } 
+
+}
+
+class SingleLeaderClientStarter(ID :String) extends ClientStarter(ID) { 
+  val replicas  = DSLProtocol.getAll(classOf[Server]).toIndexedSeq
+  val clients = (1 to count).map { 
+    i => 
+      val id = (i*ALL.size+intID).toString
+      assert(id.toInt > 0)
+    //new Client(id, LOCATION/i.toString, SZ, randomElement(replicas))
+    new Client(id, LOCATION/i.toString, SZ, replicas.head)
+  } 
+}
+abstract class ClientStarter(val ID :String) extends DSLProtocol { 
+  // TODO from config
+  val count = CONSTANTS.ClientCount / ALL.size
+  val SZ = CONSTANTS.ClientRequestPayload
+  val replicas :IndexedSeq[PL]
+  override def LOCATION = super.LOCATION.asInstanceOf[ProtocolLocation]
+  val intID = ID.toInt
+
+  val clients :Seq[Client]
 
   UPON RECEIVING START DO { 
     m => 

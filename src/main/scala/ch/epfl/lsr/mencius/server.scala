@@ -25,6 +25,6 @@ class MenciusServer(ID :String) extends RSM(ID) with OrderingServer {
 
 }
 
-class Server(val ID:String) extends ClientHandler { 
-  val orderingService = DSLProtocol.locationForId(classOf[MenciusServer], ID)
+class Server(val ID:String) extends ClientHandler(classOf[MenciusServer]) { 
+//  val orderingService = DSLProtocol.locationForId(classOf[MenciusServer], ID)
 }

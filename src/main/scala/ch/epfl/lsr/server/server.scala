@@ -50,10 +50,10 @@ trait OrderingServer extends DSLProtocol {
 
       println("ORDERING SERVER started")
 
-    val bean = ThreadMonitor.getBean
+    //val bean = ThreadMonitor.getBean
 
     | AFTER CONSTANTS.Duration DO { 
-      bean.printReport
+      //bean.printReport
       println("\nSTATS(commmits): "+stats.report)
       | AFTER 1(SECONDS) DO { 
 	System exit 0
@@ -79,10 +79,10 @@ trait OrderingServer extends DSLProtocol {
 }
 
 
-trait ClientHandler extends DSLProtocol with NumberedRequestIDs { 
+abstract class ClientHandler[T <: OrderingServer](clazz :Class[T]) extends DSLProtocol with NumberedRequestIDs { 
   self =>
-
-    val orderingService :ProtocolLocation
+    
+    val orderingService :ProtocolLocation = DSLProtocol.locationForId(clazz, ID)
 
 
     class Batcher { 
