@@ -16,6 +16,7 @@ CLASSPATH="${HOME}/@@DIR@@/:${HOME}/@@DIR@@/jars/*:"
 OPTS="${OPTS} -cp ${CLASSPATH}"
 OPTS="${OPTS} -Dprotocols.conf.url=file://${LOG_DIR}/protocols.conf "
 OPTS="${OPTS} -Dnodes.list.url=file://${LOG_DIR}/nodes "
+OPTS="${OPTS} -Dlsr.constants.file=file://${LOG_DIR}/constants.properties "
 
 COMMAND="java ${OPTS} ch.epfl.lsr.distal.deployment.DSLProtocolRunner ${LOCAL_ID}"
 
