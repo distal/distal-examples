@@ -6,14 +6,14 @@ import collection.Set
 
 import java.util.concurrent.TimeUnit._
 
-trait Ledger { 
+trait Ledger {
   /* p.11:
    * Each [Legislator] had to maintain only the following information on the back of his ledger:
    */
   var lastTried :BallotNr = -1
   var nextBal   :BallotNr = -1
   var prevVote  :Set[Vote] = Set.empty
-  // in the synod protcol the last one is just one vote, but for the parliamentary protocol we need 
+  // in the synod protcol the last one is just one vote, but for the parliamentary protocol we need
   // "the usual LastVote information for decrees not in his ledger" (p.15)
 
   // these aren't really on ledger ;-)
@@ -21,8 +21,8 @@ trait Ledger {
   def forwardNextDecreeNr(nr :DecreeNr) { nextDecree = nr }
   def nextDecreeNr = { val nr = nextDecree; nextDecree = nextDecree + 1; nr }
 
-  // note on ledger 
-  def note(decrees :Traversable[Decree]) 
+  // note on ledger
+  def note(decrees :Traversable[Decree])
   def note(decree :Decree)
 
   // read ledger
@@ -34,16 +34,16 @@ trait Ledger {
 }
 
 /*
- * p.6: 
- * A vote $v$ was defined to be a quantity consisting of three components: 
+ * p.6:
+ * A vote $v$ was defined to be a quantity consisting of three components:
  * a priest $v_{pst}$, a ballot number $v_{bal}$, and a decree $v_{dec}$.
  *
  * we know which vote comes from which priest, so we ignore priest.
  */
 case class Vote(bal :BallotNr, dec :Decree)
 
-case class Decree(n :DecreeNr, v :DecreeValue) 
-object BLANK { 
+case class Decree(n :DecreeNr, v :DecreeValue)
+object BLANK {
   def apply(n: DecreeNr) = Decree(n, null)
 }
 
@@ -61,7 +61,7 @@ case class Elected() extends Message
 /*
  * (A NextBallot(b) message is ignored if b ≤ nextBal[q].)
  */
-abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president : => LegislatorName) extends DSLProtocol { 
+abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president : => LegislatorName) extends DSLProtocol {
   import ledger._
 
   val MAJORITY = ALL.size/2 + 1
@@ -74,19 +74,19 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
 
   /*
    * starting a ballot:
-   * 
-   * p.12: 
+   *
+   * p.12:
    * (1) Priest $p$ chooses a new ballot number $b$ greater than last $Tried[p]$,sets $lastTried[p]$ to $b$,
    * and sends a $NextBallot(b)$ message to some set of priests.
-   * 
-   * p.15: 
-   * if a newly elected president $p$ has all decrees with numbers less 
-   * than or equal to $n$ written in his ledger, then he sends a 
-   * $NextBallot(b, n)$ message that serves as a $NextBallot(b)$ 
-   * message in all instances of the Synod protocol for decree 
+   *
+   * p.15:
+   * if a newly elected president $p$ has all decrees with numbers less
+   * than or equal to $n$ written in his ledger, then he sends a
+   * $NextBallot(b, n)$ message that serves as a $NextBallot(b)$
+   * message in all instances of the Synod protocol for decree
    * numbers larger than $n$.
    */
-  def startBallot() { 
+  def startBallot() {
     val b = lastTried + 1
     lastTried = b
   | SEND NextBallot(b, haveAllWithLessThan) TO ALL
@@ -100,26 +100,26 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
    * where $v$ equals $prevVote[q]$.
    *
    * p.15:
-   *  In his response to this message, legislator $q$ informs p of all 
-   * decrees numbered greater than $n$ that already appear in $q$'s ledger 
-   * (in addition to sending the usual LastVote information for decrees 
-   * not in his ledger), and he asks $p$ to send him any decrees numbered 
+   *  In his response to this message, legislator $q$ informs p of all
+   * decrees numbered greater than $n$ that already appear in $q$'s ledger
+   * (in addition to sending the usual LastVote information for decrees
+   * not in his ledger), and he asks $p$ to send him any decrees numbered
    * $n$ or less that are not in his ledger.
    */
-  UPON RECEIVING NextBallot WITH { _.b > nextBal } DO { 
+  UPON RECEIVING NextBallot WITH { _.b > nextBal } DO {
     msg =>
       //println("GOT NextBallot "+msg.b)
       nextBal = msg.b
     | TRIGGER STATECHANGED() // nextBal changed
     | SEND LastVote(msg.b,
 		    msg.n,
-		    prevVote, 	    
-		    alreadyInLedgerGreaterThan(msg.n), 
+		    prevVote,
+		    alreadyInLedgerGreaterThan(msg.n),
 		    Map(ID -> missingUpTo(msg.n))) TO SENDER
     | DISCARD msg
   }
 
-  UPON RECEIVING NextBallot WITH { _.b <= nextBal } DO { 
+  UPON RECEIVING NextBallot WITH { _.b <= nextBal } DO {
     msg =>
       //println("some NextBallot "+msg.b)
       | DISCARD msg
@@ -134,31 +134,31 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
    * 3 for each of those instances to try passing these decrees.
    *
    */
-  UPON RECEIVING LastVote WITH { _.b == lastTried } TIMES MAJORITY DO { 
+  UPON RECEIVING LastVote WITH { _.b == lastTried } TIMES MAJORITY DO {
     msgs =>
       //println("HAVE lastvotes")
 
       val n = msgs.head.n
-      // find which ones have a known outcome (were decided before): 
+      // find which ones have a known outcome (were decided before):
       val knownOutcomes :Set[Decree] = msgs.map(_.knownOutcome).reduce(_ ++ _)
       note(knownOutcomes)
 
       // find which ones someone is missing (less than n)
       val missing :Map[LegislatorName,Set[DecreeNr]] = msgs.map(_.askFor).reduce(_ ++ _)
-      for{ 
+      for{
 	legislator <- missing.keySet
 	dnr <- missing(legislator)
 	d = getDecision(dnr)
 	if d.nonEmpty // otherwise it was not less than n. should not happen.
       } | SEND Success(lastTried, getDecision(n).get) TO legislator
 
-    
+
       // find which ones have previous votes
       val previousVotes :Set[Vote] = msgs.map(_.v).reduce(_ ++ _)
       val maxVotedDecree = previousVotes.toSeq.sortBy(_.dec.n).headOption.map{ _.dec.n }
 
-      if(IamPresident && maxVotedDecree.nonEmpty) { 
-	for{  
+      if(IamPresident && maxVotedDecree.nonEmpty) {
+	for{
 	  instance <- n to maxVotedDecree.get;
 	  decree = getDecision(instance).orElse(findValue(instance, previousVotes)).getOrElse(BLANK(instance))
 	} proposeDecree(decree)
@@ -168,40 +168,40 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
 
     | DISCARD msgs
       currentBallot = lastTried
-      
+
       // propose those received before finishing the first phase
-      if(IamPresident) { 
-	for(value <- toPropose) 
+      if(IamPresident) {
+	for(value <- toPropose)
 	  proposeDecree(Decree(nextDecreeNr, value))
       }
-  }    
-
-  def proposeDecree(decree :Decree) { 
-    //println("proposing "+decree)
-    if(IamPresident && currentBallot == lastTried) { 
-      | SEND BeginBallot(lastTried, decree) TO ALL
-    } 
   }
-  
-  def findValue(instance :DecreeNr, votes :Set[Vote]) = { 
-    val votesForInstance = votes.filter(_.dec.n == instance) 
-    
+
+  def proposeDecree(decree :Decree) {
+    //println("proposing "+decree)
+    if(IamPresident && currentBallot == lastTried) {
+      | SEND BeginBallot(lastTried, decree) TO ALL
+    }
+  }
+
+  def findValue(instance :DecreeNr, votes :Set[Vote]) = {
+    val votesForInstance = votes.filter(_.dec.n == instance)
+
     if(votesForInstance.isEmpty) None
     else Some(votesForInstance.maxBy( _.bal ).dec)
   }
-  
-  UPON RECEIVING LastVote WITH { _.b <= currentBallot } DO { 
+
+  UPON RECEIVING LastVote WITH { _.b <= currentBallot } DO {
     msg =>
       | DISCARD msg
   }
 
   /*
-   * (4) Upon receipt of a $BeginBallot(b, d)$ message with $b = nextBal[q]$, 
-   * priest $q$ casts his vote in ballot number $b$, sets $prevVote[q]$ to 
-   * this vote, and sends a $Voted(b, q)$ message to $p$. 
+   * (4) Upon receipt of a $BeginBallot(b, d)$ message with $b = nextBal[q]$,
+   * priest $q$ casts his vote in ballot number $b$, sets $prevVote[q]$ to
+   * this vote, and sends a $Voted(b, q)$ message to $p$.
    * (A BeginBallot(b, d) message is ignored if $b\ne nextBal[q].)
    */
-  UPON RECEIVING BeginBallot WITH { _.b == nextBal} DO { 
+  UPON RECEIVING BeginBallot WITH { _.b == nextBal} DO {
     msg =>
       val vote = Vote(msg.b, msg.d)
       prevVote += vote
@@ -209,16 +209,16 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
     | DISCARD msg
   }
 
-  UPON RECEIVING BeginBallot WITH { _.b != nextBal} DO { 
-    msg => 
+  UPON RECEIVING BeginBallot WITH { _.b != nextBal} DO {
+    msg =>
     | DISCARD msg
   }
-  
-  // (5) If $p$ has received a $Voted(b, q)$ message from every priest 
-  // $q$ in $Q$ (the quorum for ballot number $b$), where $b = lastTried[p]$, 
-  // then he writes $d$ (the decree of that ballot) in his ledger and sends 
+
+  // (5) If $p$ has received a $Voted(b, q)$ message from every priest
+  // $q$ in $Q$ (the quorum for ballot number $b$), where $b = lastTried[p]$,
+  // then he writes $d$ (the decree of that ballot) in his ledger and sends
   // a Success(d) message to every priest.
-  UPON RECEIVING Voted WITH { _.b == lastTried } SAME { _.d.n } TIMES MAJORITY DO { 
+  UPON RECEIVING Voted WITH { _.b == lastTried } SAME { _.d.n } TIMES MAJORITY DO {
     msgs =>
       val d = msgs.head.d
       note(d)
@@ -229,24 +229,24 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
 
     | DISCARD msgs
   }
-  
-  def isDecided(voted :Voted) = { 
+
+  def isDecided(voted :Voted) = {
     alreadyDecided(voted.d.n)
   }
 
-  UPON RECEIVING Voted WITH { _.b == lastTried} WITH isDecided DO { 
-    msg => 
+  UPON RECEIVING Voted WITH { _.b == lastTried} WITH isDecided DO {
+    msg =>
       | DISCARD msg
   }
 
-  UPON RECEIVING Voted WITH { _.b != lastTried} DO { 
-    msg => 
+  UPON RECEIVING Voted WITH { _.b != lastTried} DO {
+    msg =>
       | DISCARD msg
   }
-  
+
   // (6) Upon receiving a $Success(d)$ message, a priest enters decree $d$ in his ledger.
-  UPON RECEIVING Success DO { 
-    msg => 
+  UPON RECEIVING Success DO {
+    msg =>
       prevVote -= Vote(msg.b, msg.d)
       if(!alreadyDecided(msg.d.n)) { // the leader has written it already.
 	note(msg.d)
@@ -254,31 +254,31 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
       }
     | DISCARD msg
   }
-  
+
 
   // END SYNOD
 
 
-  def proposeRequest(value :DecreeValue) { 
-      if(IamPresident && currentBallot == lastTried) { 
+  def proposeRequest(value :DecreeValue) {
+      if(IamPresident && currentBallot == lastTried) {
 	proposeDecree(Decree(nextDecreeNr, value))
-      } else if(IamPresident) { 
+      } else if(IamPresident) {
 	toPropose += value
-      } else { 
+      } else {
 	println("TODO: Request at non-leader")
 	// TODO: tell client to look somewhere else
       }
   }
 
-  // UPON RECEIVING Request DO { 
+  // UPON RECEIVING Request DO {
   //   msg =>
   //     proposeRequest(msg)
   //   | DISCARD msg
   // }
-  
-  // 
-  UPON RECEIVING Elected DO { 
-    msg => 
+
+  //
+  UPON RECEIVING Elected DO {
+    msg =>
       //println("Elected!?")
       if(IamPresident && currentBallot == lastTried)
 	startBallot
@@ -286,9 +286,9 @@ abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president 
   }
 
 
-  UPON RECEIVING START DO { 
+  UPON RECEIVING START DO {
     msg =>
-      | AFTER 5(SECONDS) DO { 
+      | AFTER 5(SECONDS) DO {
 	| SEND Elected() TO ALL
       }
   }
