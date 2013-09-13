@@ -1,18 +1,20 @@
-import sbt._ 
+import sbt._
 import Keys._
+import sbt.distal.DistalLocalRunner
+import sbt.distal.DistalLocalRunner.LocalRunnerKeys._
 
-import sbtassembly.Plugin._
-import sbtassembly.Plugin.{ AssemblyKeys => Ass }
-import sbtg5k.G5kPlugin._
-import sbtg5k.G5kPlugin.{g5kKeys => G5}
+//import sbtassembly.Plugin._
+//import sbtassembly.Plugin.{ AssemblyKeys => Ass }
+//import sbtg5k.G5kPlugin._
+//import sbtg5k.G5kPlugin.{g5kKeys => G5}
 
-object AsyncRoundsBuild extends Build { 
+object ExamplesBuild extends Build {
 
   lazy val typesafe = "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
   lazy val typesafeSnapshot = "Typesafe Snapshots Repository" at "http://repo.typesafe.com/typesafe/snapshots/"
 
-  def computeSettings = { 
-    Defaults.defaultSettings ++ super.settings ++ baseAssemblySettings ++ 
+  def computeSettings = {
+    Defaults.defaultSettings ++ super.settings ++  // baseAssemblySettings ++
     Seq[Setting[_]](
        libraryDependencies ++= Seq(
 
@@ -28,12 +30,14 @@ object AsyncRoundsBuild extends Build {
       organization := "ch.epfl.lsr",
       version := "0.1-SNAPSHOT",
       scalaVersion := "2.10.0-RC1",
-      scalacOptions ++= Seq("-deprecation", "-feature"), 
+      scalacOptions ++= Seq("-deprecation", "-feature"),
       fork := true
-     ) ++ PrivateSettings()
+    ) ++ DistalLocalRunner.settings ++ Seq(
+      localProtocolsMap := Map("1" -> Seq("Ping"), "2" -> Seq("Pong"))
+    ) ++ PrivateSettings()
   }
 
-  lazy val project = Project(id = "async-rounds",
+  lazy val project = Project(id = "distal-examples",
                              base = file("."),
                              settings = computeSettings)
 }
