@@ -1,0 +1,2 @@
+client.count=1000 2000 3000 4000
+PROTOCOL=abc4 abc5 abc6 paxos3 paxos4
