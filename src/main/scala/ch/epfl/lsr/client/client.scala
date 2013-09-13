@@ -35,7 +35,7 @@ class Client(val ID :String, override val LOCATION :ProtocolLocation, val SZ :In
 
   UPON RECEIVING ClientResponse DO {
     msg =>
-      assert(isPrevId(msg.id), "response: "+msg.id+" local"+seqno+"ID "+ID)
+      assert(isPrevId(msg.id), "response: "+msg.id+" local "+seqno+" ID "+ID)
 
     | SEND ClientRequest(nextReqId, value) TO leader
       stats.recordEvent(seqno)
