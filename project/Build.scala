@@ -8,12 +8,12 @@ object ExamplesBuild extends Build {
   lazy val typesafeSnapshot = "Typesafe Snapshots Repository" at "http://repo.typesafe.com/typesafe/snapshots/"
 
   def computeSettings = {
-    Defaults.defaultSettings ++ super.settings ++  // baseAssemblySettings ++
+    Defaults.defaultSettings ++ super.settings ++
     Seq[Setting[_]](
        libraryDependencies ++= Seq(
 
          "org.apache.commons" % "commons-math" % "2.2",
-	 "ch.epfl.lsr" %% "distal" % "0.1-SNAPSHOT"
+	 "ch.epfl.lsr" %% "distal" % "0.1"
        ),
        resolvers ++= Seq(
 	 typesafe,
@@ -22,7 +22,7 @@ object ExamplesBuild extends Build {
       name := "distal-paxos",
       organization := "ch.epfl.lsr",
       version := "0.1-SNAPSHOT",
-      scalaVersion := "2.10.0-RC1",
+      scalaVersion := "2.10.1",
       scalacOptions ++= Seq("-deprecation", "-feature"),
       fork := true
     ) ++ distalLocalRunnerSettings ++ Seq(
