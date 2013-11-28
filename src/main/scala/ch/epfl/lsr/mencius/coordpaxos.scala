@@ -220,7 +220,7 @@ trait CoordinatedPaxos extends DSLProtocol {
     //      Broadcast PROPOSE(b, hv)
     //   end
     // end
-      val ha = msgs.maxBy { _.ab }._2
+      val ha = msgs.maxBy { _.ab }.ab
       val hvset = msgs.filter { _.ab == ha } map { _.av }
       assert(hvset.size <= 1)
     | SEND PROPOSE(msg.i, msg.b, hvset.headOption.getOrElse(noop)) TO ALL
