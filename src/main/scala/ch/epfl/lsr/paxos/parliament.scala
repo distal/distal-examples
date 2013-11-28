@@ -64,7 +64,7 @@ case class Elected() extends Message
 abstract class Legislator(val ID :LegislatorName, val ledger :Ledger, president : => LegislatorName) extends DSLProtocol {
   import ledger._
 
-  val MAJORITY = ALL.size/2 + 1
+  val MAJORITY = ((ALL.size+1f)/2).ceil.toInt
 
   private val toPropose = collection.mutable.Queue[DecreeValue]()
   private var currentBallot :BallotNr = -1
