@@ -23,9 +23,11 @@ OPTS="${OPTS} -Dlsr.constants.file=file://${LOG_DIR}/properties "
 
 COMMAND="java ${OPTS} ch.epfl.lsr.distal.deployment.DSLProtocolRunner ${LOCAL_ID}"
 
+ip -s link >> ${LOG_DIR}/${LOCAL_ID}.err.log
 (echo ID: ${LOCAL_ID} LOGDIR: ${LOG_DIR} HOST: ${LOCAL}
     echo Starting at `date`
 echo running ${COMMAND}
 /usr/bin/time -v ${COMMAND}
 echo Finished at `date`
-) >> ${LOG_DIR}/${LOCAL_ID}.log 2>${LOG_DIR}/${LOCAL_ID}.err.log
+) >> ${LOG_DIR}/${LOCAL_ID}.log 2>>${LOG_DIR}/${LOCAL_ID}.err.log
+ip -s link >> ${LOG_DIR}/${LOCAL_ID}.err.log
