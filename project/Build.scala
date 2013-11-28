@@ -1,12 +1,6 @@
 import sbt._
 import Keys._
-import sbt.distal.DistalLocalRunner
-import sbt.distal.DistalLocalRunner.LocalRunnerKeys._
-
-//import sbtassembly.Plugin._
-//import sbtassembly.Plugin.{ AssemblyKeys => Ass }
-//import sbtg5k.G5kPlugin._
-//import sbtg5k.G5kPlugin.{g5kKeys => G5}
+import ch.epfl.lsr.sbt.distal.DistalLocalRunner._
 
 object ExamplesBuild extends Build {
 
@@ -20,7 +14,6 @@ object ExamplesBuild extends Build {
 
          "org.apache.commons" % "commons-math" % "2.2",
 	 "ch.epfl.lsr" %% "distal" % "0.1-SNAPSHOT"
-
        ),
        resolvers ++= Seq(
 	 typesafe,
@@ -32,8 +25,8 @@ object ExamplesBuild extends Build {
       scalaVersion := "2.10.0-RC1",
       scalacOptions ++= Seq("-deprecation", "-feature"),
       fork := true
-    ) ++ DistalLocalRunner.settings ++ Seq(
-      localProtocolsMap := Map("1" -> Seq("Ping"), "2" -> Seq("Pong"))
+    ) ++ distalLocalRunnerSettings ++ Seq(
+      distalProtocolsMap := Map("1" -> Seq("ch.epfl.lsr.ping.Server"), "2" -> Seq("ch.epfl.lsr.ping.Client"))
     ) ++ PrivateSettings()
   }
 
