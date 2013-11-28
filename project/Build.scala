@@ -21,7 +21,7 @@ object ExamplesBuild extends Build {
        ),
       name := "distal-paxos",
       organization := "ch.epfl.lsr",
-      version := "0.1-SNAPSHOT",
+      version := "0.1",
       scalaVersion := "2.10.1",
       scalacOptions ++= Seq("-deprecation", "-feature"),
       fork := true
