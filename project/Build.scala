@@ -27,7 +27,11 @@ object ExamplesBuild extends Build {
       fork := true
     ) ++ distalLocalRunnerSettings ++ Seq(
       distalProtocolsMap := Map("1" -> Seq("ch.epfl.lsr.ping.Server"), "2" -> Seq("ch.epfl.lsr.ping.Client"))
-    ) ++ PrivateSettings()
+    ) ++ g5kSettings ++ Seq[Setting[_]](
+        g5kSite := "luxembourg"
+      , g5kCluster :=  "stremi"
+      , g5kDst := "distal-paxos"
+      , g5kNodes := Seq(8)
   }
 
   lazy val project = Project(id = "distal-examples",
